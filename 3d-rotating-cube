@@ -1,0 +1,93 @@
+SCREEN 12
+_TITLE "3D Rotating Cube"
+
+DIM vx(8), vy(8), vz(8)
+DIM px(8), py(8)
+DIM ex1(12), ex2(12)
+
+' Define the 8 corners of the cube
+DATA -1,-1,-1
+DATA  1,-1,-1
+DATA  1, 1,-1
+DATA -1, 1,-1
+DATA -1,-1, 1
+DATA  1,-1, 1
+DATA  1, 1, 1
+DATA -1, 1, 1
+
+FOR i = 1 TO 8
+    READ vx(i), vy(i), vz(i)
+NEXT i
+
+' Define the 12 edges
+DATA 1,2, 2,3, 3,4, 4,1
+DATA 5,6, 6,7, 7,8, 8,5
+DATA 1,5, 2,6, 3,7, 4,8
+
+FOR i = 1 TO 12
+    READ ex1(i), ex2(i)
+NEXT i
+
+ax = 0
+ay = 0
+az = 0
+
+DO
+    CLS
+
+    ' Precalculate rotation values
+    cx = COS(ax)
+    sx = SIN(ax)
+    cy = COS(ay)
+    sy = SIN(ay)
+    cz = COS(az)
+    sz = SIN(az)
+
+    ' Rotate and project each corner
+    FOR i = 1 TO 8
+
+        x = vx(i)
+        y = vy(i)
+        z = vz(i)
+
+        ' Rotate around X axis
+        y1 = y * cx - z * sx
+        z1 = y * sx + z * cx
+
+        ' Rotate around Y axis
+        x1 = x * cy + z1 * sy
+        z2 = -x * sy + z1 * cy
+
+        ' Rotate around Z axis
+        x2 = x1 * cz - y1 * sz
+        y2 = x1 * sz + y1 * cz
+
+        ' Perspective projection
+        distance = 4
+        scale = 180
+
+        px(i) = 320 + x2 * scale / (distance + z2)
+        py(i) = 240 - y2 * scale / (distance + z2)
+
+    NEXT i
+
+    ' Draw all 12 edges
+    FOR i = 1 TO 12
+        a = ex1(i)
+        b = ex2(i)
+
+        ' Cycle through bright colors
+        col = 11 + ((i MOD 5) * 2)
+
+        LINE (px(a), py(a))-(px(b), py(b)), col
+    NEXT i
+
+    ' Advance the rotation
+    ax = ax + .025
+    ay = ay + .035
+    az = az + .015
+
+    ' Limit the frame rate for animation
+    _LIMIT 60
+
+LOOP
