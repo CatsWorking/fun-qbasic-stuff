@@ -1,0 +1,200 @@
+_TITLE "ball game"
+SCREEN _NEWIMAGE(800, 500, 32)
+RANDOMIZE TIMER
+
+CONST R = 18
+CONST MAXP = 100
+
+DIM px(MAXP), py(MAXP)
+DIM vx(MAXP), vy(MAXP)
+DIM life(MAXP)
+DIM pc(MAXP)
+
+bx = 180
+by = 100
+oldx = bx
+oldy = by
+ballvx = 0
+ballvy = 0
+grabbed = 0
+wasdown = 0
+ground = 440
+gravity = .32
+bounce = .76
+pipCooldown = 0
+particles = 0
+
+DO
+    _LIMIT 60
+
+    ' Mouse state
+    WHILE _MOUSEINPUT: WEND
+    mx = _MOUSEX
+    my = _MOUSEY
+    down = _MOUSEBUTTON(1)
+
+    ' Reset with R
+    k$ = INKEY$
+    IF LCASE$(k$) = "r" THEN
+        bx = 180
+        by = 100
+        ballvx = 0
+        ballvy = 0
+        grabbed = 0
+        particles = 0
+    END IF
+
+    ' Pick up the ball
+    IF down AND wasdown = 0 THEN
+        dx = mx - bx
+        dy = my - by
+        IF SQR(dx * dx + dy * dy) < R + 8 THEN
+            grabbed = 1
+            grabdx = bx - mx
+            grabdy = by - my
+            ballvx = 0
+            ballvy = 0
+        END IF
+    END IF
+
+    ' Drag and release
+    IF grabbed = 1 THEN
+        IF down THEN
+            oldx = bx
+            oldy = by
+            bx = mx + grabdx
+            by = my + grabdy
+            ballvx = bx - oldx
+            ballvy = by - oldy
+        ELSE
+            grabbed = 0
+        END IF
+    END IF
+
+    ' Physics
+    IF grabbed = 0 THEN
+        ballvy = ballvy + gravity
+        bx = bx + ballvx
+        by = by + ballvy
+
+        ' Side walls
+        IF bx < R THEN
+            bx = R
+            ballvx = ABS(ballvx) * .8
+        END IF
+        IF bx > 800 - R THEN
+            bx = 800 - R
+            ballvx = -ABS(ballvx) * .8
+        END IF
+
+        ' Ceiling
+        IF by < R THEN
+            by = R
+            ballvy = ABS(ballvy) * .7
+        END IF
+
+        ' Ground collision
+        IF by > ground - R THEN
+            by = ground - R
+
+            impact = ABS(ballvy)
+
+            IF impact > 1.2 THEN
+                ' Small pip on impact
+                SOUND 1000, 0.1
+
+                ' Hard impacts make particles
+                IF impact > 7 THEN
+                    FOR i = 1 TO 22
+                        IF particles < MAXP THEN
+                            particles = particles + 1
+                        ELSE
+                            particles = 1
+                        END IF
+
+                        px(particles) = bx
+                        py(particles) = ground - 3
+                        vx(particles) = (RND - .5) * 9
+                        vy(particles) = -RND * 7 - 1
+                        life(particles) = 20 + INT(RND * 20)
+                        pc(particles) = 9 + INT(RND * 7)
+                    NEXT i
+                END IF
+
+                ballvy = -ballvy * bounce
+                ballvx = ballvx * .94
+
+                IF ABS(ballvy) < 1.5 THEN ballvy = 0
+            ELSE
+                ballvy = 0
+            END IF
+        END IF
+    END IF
+
+    ' Draw the scene
+    CLS
+    COLOR _RGB32(225, 235, 250), _RGB32(18, 23, 40)
+
+    ' Background stars
+    FOR i = 1 TO 35
+        sx = (i * 137) MOD 790 + 5
+        sy = (i * 71) MOD 350 + 5
+        PSET (sx, sy), _RGB32(65, 78, 105)
+    NEXT i
+
+    ' Ground
+    LINE (0, ground)-(800, 500), _
+        _RGB32(60, 190, 145), BF
+    LINE (0, ground)-(800, ground), _
+        _RGB32(130, 255, 190)
+
+    ' Particles
+    FOR i = 1 TO MAXP
+        IF life(i) > 0 THEN
+            px(i) = px(i) + vx(i)
+            py(i) = py(i) + vy(i)
+            vy(i) = vy(i) + .22
+            vx(i) = vx(i) * .98
+            life(i) = life(i) - 1
+
+            IF py(i) < ground THEN
+                CIRCLE (px(i), py(i)), 2, _
+                    _RGB32(255, 180 + pc(i) * 5, 80)
+            END IF
+        END IF
+    NEXT i
+
+    ' Ball shadow
+    shadow = 5 + INT((ground - by) / 18)
+    IF shadow > 30 THEN shadow = 30
+    IF shadow < 3 THEN shadow = 3
+    CIRCLE (bx, ground - 3), shadow, _
+        _RGB32(40, 105, 90)
+
+    ' Ball
+    CIRCLE (bx, by), R, _RGB32(70, 180, 255)
+    PAINT (bx, by), _RGB32(55, 145, 235), _
+        _RGB32(70, 180, 255)
+    CIRCLE (bx - 5, by - 6), 4, _
+        _RGB32(210, 240, 255)
+
+    ' Instructions
+    COLOR _RGB32(240, 245, 255)
+    LOCATE 2, 3
+    PRINT "ball physics"
+    LOCATE 3, 3
+    PRINT "drag ball and let go"
+    LOCATE 4, 3
+    PRINT "have fun"
+    LOCATE 5, 3
+    PRINT "https://github.com/CatsWorking/fun-qbasic-stuff"
+    LOCATE 6, 3
+    PRINT "created by sushi"
+
+    LOCATE 7, 3
+    PRINT "Impact speed:"; INT(ABS(ballvy) * 100) / 100
+
+    wasdown = down
+
+    _DISPLAY
+LOOP UNTIL _KEYHIT = 27
